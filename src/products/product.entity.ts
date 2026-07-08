@@ -24,7 +24,7 @@ export class Product {
   @Column({ length: 50 })
   categoria: string;
 
-  @Column({ type: 'simple-array', nullable: true })
+  @Column({ type: 'text', array: true, nullable: true })
   tallas: string[];
 
   @Column({ type: 'int', default: 0 })
