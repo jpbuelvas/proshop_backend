@@ -1,8 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { User } from '../users/user.entity';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 
 interface SocialProfile {
   provider: 'google' | 'facebook' | 'local';
@@ -21,17 +28,12 @@ export class AuthService {
   ) {}
 
   async findOrCreateUser(profile: SocialProfile): Promise<User> {
-    // 1. Buscar por provider + providerId
     let user = await this.userRepo.findOne({
       where: { provider: profile.provider, providerId: profile.providerId },
     });
-
-    // 2. Si no existe, buscar por email (puede que ya se registró con otro provider)
     if (!user) {
       user = await this.userRepo.findOne({ where: { email: profile.email } });
     }
-
-    // 3. Si sigue sin existir, crear nuevo usuario
     if (!user) {
       user = this.userRepo.create({
         email: profile.email,
@@ -43,8 +45,39 @@ export class AuthService {
       });
       user = await this.userRepo.save(user);
     }
-
     return user;
+  }
+
+  async register(dto: RegisterDto): Promise<{ token: string; user: Omit<User, 'passwordHash'> }> {
+    const exists = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (exists) throw new ConflictException('El email ya esta registrado');
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    let user = this.userRepo.create({
+      name: dto.name,
+      email: dto.email,
+      passwordHash,
+      provider: 'local',
+      role: 'user',
+    });
+    user = await this.userRepo.save(user);
+
+    const token = this.generateJwt(user);
+    const { passwordHash: _, ...safeUser } = user;
+    return { token, user: safeUser };
+  }
+
+  async login(dto: LoginDto): Promise<{ token: string; user: Omit<User, 'passwordHash'> }> {
+    const user = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('Credenciales invalidas');
+    }
+    const valid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Credenciales invalidas');
+
+    const token = this.generateJwt(user);
+    const { passwordHash: _, ...safeUser } = user;
+    return { token, user: safeUser };
   }
 
   generateJwt(user: User): string {

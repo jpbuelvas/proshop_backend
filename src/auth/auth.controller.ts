@@ -1,9 +1,11 @@
-import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -12,12 +14,21 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
-  // ─── GOOGLE ────────────────────────────────────────────────────
+  // EMAIL / PASSWORD
+  @Post('register')
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  @Post('login')
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
+
+  // GOOGLE
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  googleLogin() {
-    // Passport redirige automáticamente a Google
-  }
+  googleLogin() {}
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
@@ -27,12 +38,10 @@ export class AuthController {
     res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
   }
 
-  // ─── FACEBOOK ──────────────────────────────────────────────────
+  // FACEBOOK
   @Get('facebook')
   @UseGuards(AuthGuard('facebook'))
-  facebookLogin() {
-    // Passport redirige automáticamente a Facebook
-  }
+  facebookLogin() {}
 
   @Get('facebook/callback')
   @UseGuards(AuthGuard('facebook'))
@@ -42,7 +51,7 @@ export class AuthController {
     res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
   }
 
-  // ─── PERFIL ────────────────────────────────────────────────────
+  // PERFIL
   @Get('me')
   @UseGuards(JwtAuthGuard)
   getMe(@Req() req: any) {

@@ -2,27 +2,58 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './product.entity';
+import { ProductVariant } from './product-variant.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+
+function variantFields(v: {
+  color?: string;
+  size?: string;
+  available?: number;
+  specialPrice?: number;
+  imageUrl?: string;
+}) {
+  return {
+    color: v.color ?? 'U',
+    size: v.size ?? 'U',
+    available: v.available ?? 0,
+    ...(v.specialPrice != null ? { specialPrice: v.specialPrice } : {}),
+    ...(v.imageUrl ? { imageUrl: v.imageUrl } : {}),
+  };
+}
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(ProductVariant)
+    private readonly variantRepository: Repository<ProductVariant>,
   ) {}
 
-  create(createProductDto: CreateProductDto): Promise<Product> {
-    const product = this.productRepository.create(createProductDto);
-    return this.productRepository.save(product);
+  async create(dto: CreateProductDto): Promise<Product> {
+    const { variants, ...productData } = dto;
+    const product = this.productRepository.create(productData);
+    const saved = await this.productRepository.save(product);
+
+    if (variants && variants.length > 0) {
+      const variantEntities: ProductVariant[] = variants.map((v) => {
+        const entity = this.variantRepository.create(variantFields(v));
+        entity.productId = saved.id;
+        return entity;
+      });
+      await this.variantRepository.save(variantEntities);
+    }
+
+    return this.findOne(saved.id);
   }
 
   findAll(): Promise<Product[]> {
     return this.productRepository.find();
   }
 
-  findByCategory(categoria: string): Promise<Product[]> {
-    return this.productRepository.find({ where: { categoria } });
+  findByCategory(category: string): Promise<Product[]> {
+    return this.productRepository.find({ where: { category } });
   }
 
   async findOne(id: number): Promise<Product> {
@@ -31,10 +62,30 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
+  async update(id: number, dto: UpdateProductDto): Promise<Product> {
     const product = await this.findOne(id);
-    Object.assign(product, updateProductDto);
-    return this.productRepository.save(product);
+    const { variants, ...productData } = dto;
+    Object.assign(product, productData);
+    await this.productRepository.save(product);
+
+    if (variants !== undefined) {
+      const incomingIds = variants.filter((v) => v.id).map((v) => v.id!);
+      const existingVariants = await this.variantRepository.find({ where: { productId: id } });
+      const toDelete = existingVariants.filter((ev) => !incomingIds.includes(ev.id));
+      if (toDelete.length > 0) await this.variantRepository.remove(toDelete);
+
+      for (const v of variants) {
+        if (v.id) {
+          await this.variantRepository.update(v.id, variantFields(v));
+        } else {
+          const entity = this.variantRepository.create(variantFields(v));
+          entity.productId = id;
+          await this.variantRepository.save(entity);
+        }
+      }
+    }
+
+    return this.findOne(id);
   }
 
   async remove(id: number): Promise<void> {
@@ -42,33 +93,55 @@ export class ProductsService {
     await this.productRepository.remove(product);
   }
 
-  // Decrementa stock atómicamente. Lanza error si no hay suficiente.
-  async reserveStock(items: { productId: number; quantity: number }[]): Promise<void> {
+  async reserveStock(
+    items: { productId: number; color: string; size: string; quantity: number }[],
+  ): Promise<void> {
     for (const item of items) {
-      const result = await this.productRepository
+      const result = await this.variantRepository
         .createQueryBuilder()
-        .update(Product)
-        .set({ disponibles: () => `disponibles - ${item.quantity}` })
-        .where('id = :id AND disponibles >= :qty', { id: item.productId, qty: item.quantity })
+        .update(ProductVariant)
+        .set({ available: () => `available - ${item.quantity}` })
+        .where(
+          '"productId" = :pid AND color = :color AND size = :size AND available >= :qty',
+          { pid: item.productId, color: item.color, size: item.size, qty: item.quantity },
+        )
         .execute();
 
       if (!result.affected || result.affected === 0) {
-        const p = await this.productRepository.findOneBy({ id: item.productId });
+        const variant = await this.variantRepository.findOne({
+          where: { productId: item.productId, color: item.color, size: item.size },
+          relations: ['product'],
+        });
+        const productName = variant?.product?.name ?? `producto #${item.productId}`;
+        const available = variant?.available ?? 0;
+        const detail =
+          item.color !== 'U' && item.size !== 'U'
+            ? `color ${item.color}, talla ${item.size}`
+            : item.color !== 'U'
+            ? `color ${item.color}`
+            : item.size !== 'U'
+            ? `talla ${item.size}`
+            : '';
         throw new BadRequestException(
-          `Stock insuficiente para "${p?.nombre ?? `producto #${item.productId}`}" — disponibles: ${p?.disponibles ?? 0}`,
+          `Stock insuficiente para "${productName}"${detail ? ' (' + detail + ')' : ''} - disponibles: ${available}`,
         );
       }
     }
   }
 
-  // Devuelve stock (al cancelar/rechazar orden)
-  async releaseStock(items: { productId: number; quantity: number }[]): Promise<void> {
+  async releaseStock(
+    items: { productId: number; color: string; size: string; quantity: number }[],
+  ): Promise<void> {
     for (const item of items) {
-      await this.productRepository
+      await this.variantRepository
         .createQueryBuilder()
-        .update(Product)
-        .set({ disponibles: () => `disponibles + ${item.quantity}` })
-        .where('id = :id', { id: item.productId })
+        .update(ProductVariant)
+        .set({ available: () => `available + ${item.quantity}` })
+        .where('"productId" = :pid AND color = :color AND size = :size', {
+          pid: item.productId,
+          color: item.color,
+          size: item.size,
+        })
         .execute();
     }
   }

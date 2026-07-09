@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PaymentsService } from '../payments/payments.service';
 import { OrdersService } from '../orders/orders.service';
+import { DropiService } from '../dropi/dropi.service';
 
 @Injectable()
 export class WebhooksService {
@@ -12,16 +13,15 @@ export class WebhooksService {
     private readonly config: ConfigService,
     private readonly paymentsService: PaymentsService,
     private readonly ordersService: OrdersService,
+    private readonly dropiService: DropiService,
   ) {}
 
-  // Valida la firma que Wompi envía en el header x-event-checksum
   validateWompiSignature(body: any, checksum: string): boolean {
     try {
       const secret = this.config.get<string>('WOMPI_EVENTS_SECRET')!;
       const properties: string[] = body?.signature?.properties ?? [];
       const timestamp: string = String(body?.timestamp ?? '');
 
-      // Concatenar valores de las propiedades indicadas por Wompi + timestamp + secret
       const concatenated =
         properties
           .map((prop: string) =>
@@ -54,7 +54,6 @@ export class WebhooksService {
       return;
     }
 
-    // Mapear estado de Wompi a estado interno
     const statusMap: Record<string, 'APPROVED' | 'DECLINED' | 'VOIDED'> = {
       APPROVED: 'APPROVED',
       DECLINED: 'DECLINED',
@@ -68,23 +67,36 @@ export class WebhooksService {
       return;
     }
 
-    // Actualizar pago
     await this.paymentsService.updateStatus(payment, newStatus, transactionId, transaction);
 
-    // Actualizar orden y gestionar stock
     const orderStatus = newStatus === 'APPROVED' ? 'APPROVED' : 'DECLINED';
     await this.ordersService.updateStatus(payment.orderId, orderStatus);
 
-    // Si fue rechazado, liberar el stock reservado
     if (orderStatus === 'DECLINED') {
       const order = await this.ordersService.findOneWithUser(payment.orderId);
       await this.ordersService.releaseStockForOrder(order);
     }
 
-    this.logger.log(
-      `Orden #${payment.orderId} → ${orderStatus} (Wompi ref: ${reference})`,
-    );
+    if (orderStatus === 'APPROVED') {
+      const order = await this.ordersService.findOneWithUser(payment.orderId);
 
-    // TODO Fase siguiente: si APPROVED → crear orden en Dropi + enviar notificaciones
+      // Crear orden en Dropi (no bloquea el flujo si falla)
+      const dropiResult = await this.dropiService.createOrder(order);
+
+      if (dropiResult.dropiOrderId) {
+        await this.ordersService.setTracking(
+          payment.orderId,
+          dropiResult.dropiOrderId,
+          dropiResult.trackingNumber ?? '',
+        );
+        this.logger.log(
+          `Orden #${payment.orderId} => Dropi #${dropiResult.dropiOrderId}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `Orden #${payment.orderId} => ${orderStatus} (ref: ${reference})`,
+    );
   }
 }

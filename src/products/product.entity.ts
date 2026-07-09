@@ -2,7 +2,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  OneToMany,
 } from 'typeorm';
+import { ProductVariant } from './product-variant.entity';
 
 @Entity('products')
 export class Product {
@@ -10,25 +12,22 @@ export class Product {
   id: number;
 
   @Column({ length: 100 })
-  nombre: string;
+  name: string;
 
   @Column({ type: 'text', nullable: true })
-  descripcion: string;
+  description: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
-  precio: number;
+  price: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: null })
-  precioAnterior: number;
+  previousPrice: number;
 
   @Column({ length: 50 })
-  categoria: string;
+  category: string;
 
   @Column({ type: 'text', array: true, nullable: true })
-  genero: string[];
-
-  @Column({ type: 'text', array: true, nullable: true })
-  tallas: string[];
+  gender: string[];
 
   @Column({ type: 'decimal', precision: 3, scale: 1, nullable: true, default: null })
   rating: number;
@@ -36,9 +35,14 @@ export class Product {
   @Column({ type: 'int', nullable: true, default: 0 })
   reviews: number;
 
-  @Column({ type: 'int', default: 100 })
-  disponibles: number;
-
   @Column({ length: 500, nullable: true })
-  urlImagen: string;
+  imageUrl: string;
+
+  // ID del producto en Dropi (para crear ordenes de envio)
+  @Column({ nullable: true, type: 'int' })
+  dropiProductId: number;
+
+  // Stock por color+talla
+  @OneToMany(() => ProductVariant, (v) => v.product, { eager: true, cascade: true })
+  variants: ProductVariant[];
 }

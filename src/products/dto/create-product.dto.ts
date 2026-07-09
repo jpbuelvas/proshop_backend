@@ -3,41 +3,84 @@ import {
   IsNumber,
   IsOptional,
   IsArray,
-  Min,
   MaxLength,
   IsPositive,
+  ValidateNested,
+  IsInt,
+  Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class CreateVariantDto {
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  color?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  size?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  available?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  specialPrice?: number;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+}
 
 export class CreateProductDto {
   @IsString()
   @MaxLength(100)
-  nombre: string;
+  name: string;
 
   @IsString()
-  descripcion: string;
-
-  @IsString()
-  @MaxLength(50)
-  color: string;
+  @IsOptional()
+  description?: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
-  precio: number;
+  price: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsOptional()
+  previousPrice?: number;
 
   @IsString()
   @MaxLength(50)
-  categoria: string;
+  category: string;
 
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  tallas?: string[];
+  gender?: string[];
+
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @IsOptional()
+  rating?: number;
 
   @IsNumber()
-  @Min(0)
-  disponibles: number;
+  @IsOptional()
+  reviews?: number;
 
   @IsString()
   @IsOptional()
-  urlImagen?: string;
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateVariantDto)
+  variants?: CreateVariantDto[];
 }

@@ -18,9 +18,14 @@ export class OrdersService {
   ) {}
 
   async create(userId: number, dto: CreateOrderDto): Promise<Order> {
-    // Reservar stock atómicamente — lanza BadRequestException si no hay disponibles
+    // Reservar stock por talla — lanza BadRequestException si no hay disponibles
     await this.productsService.reserveStock(
-      dto.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      dto.items.map((i) => ({
+        productId: i.productId,
+        color: i.color || 'U',
+        size: i.size || 'U',
+        quantity: i.quantity,
+      })),
     );
 
     const order = this.orderRepo.create({
@@ -84,11 +89,16 @@ export class OrdersService {
     });
   }
 
-  // Libera el stock de una orden (para usar desde controllers/webhooks)
+  // Libera el stock por talla de una orden (para usar desde controllers/webhooks)
   async releaseStockForOrder(order: Order): Promise<void> {
     if (!order.items?.length) return;
     await this.productsService.releaseStock(
-      order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      order.items.map((i) => ({
+        productId: i.productId,
+        color: i.color || 'U',
+        size: i.size || 'U',
+        quantity: i.quantity,
+      })),
     );
   }
 
@@ -104,7 +114,7 @@ export class OrdersService {
   async cancelExpired(order: Order): Promise<void> {
     await this.orderRepo.update(order.id, { status: 'DECLINED' });
     await this.productsService.releaseStock(
-      order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      order.items.map((i) => ({ productId: i.productId, color: i.color || 'U', size: i.size || 'U', quantity: i.quantity })),
     );
   }
 }

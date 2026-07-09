@@ -1,0 +1,202 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Cron } from '@nestjs/schedule';
+import axios from 'axios';
+import { Product } from '../products/product.entity';
+import { ProductVariant } from '../products/product-variant.entity';
+
+interface WcImage { src: string; }
+interface WcCategory { name: string; }
+interface WcMeta { key: string; value: any; }
+
+interface WcProduct {
+  id: number;
+  name: string;
+  description: string;
+  short_description: string;
+  price: string;
+  regular_price: string;
+  stock_quantity: number | null;
+  categories: WcCategory[];
+  images: WcImage[];
+  meta_data: WcMeta[];
+  status: string;
+}
+
+function stripHtml(html: string): string {
+  return (html ?? '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function getMeta(meta: WcMeta[], ...keys: string[]): string | null {
+  for (const key of keys) {
+    const found = meta.find((m) => m.key === key);
+    if (found?.value != null) return String(found.value);
+  }
+  return null;
+}
+
+@Injectable()
+export class SyncService {
+  private readonly logger = new Logger(SyncService.name);
+  private lastSync: Date | null = null;
+  private lastCount = 0;
+  private lastErrors = 0;
+  private syncing = false;
+
+  private get wcBase() { return process.env.WC_URL ?? 'http://dropi-bridge.local'; }
+  private get wcKey() { return process.env.WC_CONSUMER_KEY ?? ''; }
+  private get wcSecret() { return process.env.WC_CONSUMER_SECRET ?? ''; }
+
+  constructor(
+    @InjectRepository(Product) private productRepo: Repository<Product>,
+    @InjectRepository(ProductVariant) private variantRepo: Repository<ProductVariant>,
+  ) {}
+
+  getStatus() {
+    return {
+      lastSync: this.lastSync,
+      lastCount: this.lastCount,
+      lastErrors: this.lastErrors,
+      syncing: this.syncing,
+    };
+  }
+
+  @Cron('0 */6 * * *')
+  async scheduledSync() {
+    this.logger.log('Scheduled sync started');
+    await this.syncAll();
+  }
+
+  async syncAll(): Promise<{ synced: number; errors: number }> {
+    if (this.syncing) {
+      return { synced: 0, errors: 0 };
+    }
+    this.syncing = true;
+    let synced = 0;
+    let errors = 0;
+    let page = 1;
+    const perPage = 100;
+
+    try {
+      while (true) {
+        const products = await this.fetchPage(page, perPage);
+        if (!products || products.length === 0) break;
+
+        for (const p of products) {
+          try {
+            await this.upsertProduct(p);
+            synced++;
+          } catch (e: any) {
+            errors++;
+            this.logger.warn(`Error en producto WC#${p.id} "${p.name}": ${e.message}`);
+          }
+        }
+
+        this.logger.log(`Pagina ${page}: ${products.length} productos (total: ${synced})`);
+        if (products.length < perPage) break;
+        page++;
+      }
+    } catch (e: any) {
+      this.logger.error(`Error en sync: ${e.message}`);
+      throw e;
+    } finally {
+      this.syncing = false;
+      this.lastSync = new Date();
+      this.lastCount = synced;
+      this.lastErrors = errors;
+      this.logger.log(`Sync completo: ${synced} productos, ${errors} errores`);
+    }
+
+    return { synced, errors };
+  }
+
+  private async fetchPage(page: number, perPage: number): Promise<WcProduct[]> {
+    const auth = Buffer.from(`${this.wcKey}:${this.wcSecret}`).toString('base64');
+    const { data } = await axios.get<WcProduct[]>(
+      `${this.wcBase}/wp-json/wc/v3/products`,
+      {
+        headers: { Authorization: `Basic ${auth}` },
+        params: { per_page: perPage, page, status: 'publish' },
+        timeout: 30000,
+      },
+    );
+    return data;
+  }
+
+  private async upsertProduct(wc: WcProduct): Promise<void> {
+    const dropiIdRaw = getMeta(wc.meta_data, '_dropi_product_id', 'dropi_product_id', '_dropi_id');
+    const dropiProductId = dropiIdRaw ? parseInt(dropiIdRaw, 10) : null;
+
+    // Precio sugerido = lo que el cliente paga; precio Dropi = nuestro costo
+    const suggestedRaw = getMeta(wc.meta_data, '_precio_sugerido', 'precio_sugerido', '_suggested_price', 'suggested_price');
+    const suggested = suggestedRaw ? parseFloat(suggestedRaw) : null;
+    const dropiCost = parseFloat(wc.regular_price || wc.price || '0');
+
+    // Si hay precio sugerido: mostrar sugerido como precio, costo como tachado
+    const price = suggested && suggested > 0 ? suggested : dropiCost;
+    const previousPrice = suggested && suggested > 0 ? dropiCost : null;
+
+    const name = wc.name.trim();
+    const description = stripHtml(wc.description || wc.short_description || '');
+    const category = (wc.categories?.[0]?.name ?? 'general').toLowerCase();
+    const imageUrl = wc.images?.[0]?.src ?? '';
+    const stock = wc.stock_quantity ?? 0;
+
+    // Buscar existente por dropiProductId primero, luego por nombre
+    let existing: Product | null = null;
+    if (dropiProductId) {
+      existing = await this.productRepo.findOne({ where: { dropiProductId } });
+    }
+    if (!existing) {
+      existing = await this.productRepo.findOne({ where: { name } });
+    }
+
+    if (existing) {
+      existing.name = name;
+      existing.description = description;
+      existing.price = price;
+      (existing as any).previousPrice = previousPrice;
+      existing.category = category;
+      if (imageUrl) existing.imageUrl = imageUrl;
+      if (dropiProductId && !existing.dropiProductId) existing.dropiProductId = dropiProductId;
+      await this.productRepo.save(existing);
+
+      // Actualizar stock de variante U/U
+      const v = await this.variantRepo.findOne({
+        where: { productId: existing.id, color: 'U', size: 'U' },
+      });
+      if (v) {
+        v.available = stock;
+        await this.variantRepo.save(v);
+      }
+    } else {
+      const product = new Product();
+      product.name = name;
+      product.description = description;
+      product.price = price;
+      (product as any).previousPrice = previousPrice;
+      product.category = category;
+      product.gender = ['hombre', 'mujer'];
+      product.imageUrl = imageUrl;
+      product.reviews = 0;
+      if (dropiProductId) product.dropiProductId = dropiProductId;
+
+      const saved = await this.productRepo.save(product);
+
+      const variant = new ProductVariant();
+      variant.color = 'U';
+      variant.size = 'U';
+      variant.available = stock;
+      variant.productId = saved.id;
+      await this.variantRepo.save(variant);
+    }
+  }
+}
