@@ -13,6 +13,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { TasksModule } from './tasks/tasks.module';
 import { DropiModule } from './dropi/dropi.module';
 import { SyncModule } from './sync/sync.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { Product } from './products/product.entity';
 import { ProductVariant } from './products/product-variant.entity';
 import { User } from './users/user.entity';
@@ -47,6 +48,7 @@ import { Payment } from './payments/payment.entity';
     TasksModule,
     DropiModule,
     SyncModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

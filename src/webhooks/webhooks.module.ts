@@ -4,9 +4,10 @@ import { WebhooksService } from './webhooks.service';
 import { PaymentsModule } from '../payments/payments.module';
 import { OrdersModule } from '../orders/orders.module';
 import { DropiModule } from '../dropi/dropi.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PaymentsModule, OrdersModule, DropiModule],
+  imports: [PaymentsModule, OrdersModule, DropiModule, NotificationsModule],
   controllers: [WebhooksController],
   providers: [WebhooksService],
 })

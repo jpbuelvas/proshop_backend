@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { PaymentsService } from '../payments/payments.service';
 import { OrdersService } from '../orders/orders.service';
 import { DropiService } from '../dropi/dropi.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class WebhooksService {
@@ -14,6 +15,7 @@ export class WebhooksService {
     private readonly paymentsService: PaymentsService,
     private readonly ordersService: OrdersService,
     private readonly dropiService: DropiService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   validateWompiSignature(body: any, checksum: string): boolean {
@@ -50,7 +52,7 @@ export class WebhooksService {
 
     const payment = await this.paymentsService.findByReference(reference);
     if (!payment) {
-      this.logger.warn(`Pago no encontrado para referencia: ${reference}`);
+      this.logger.warn('Pago no encontrado para referencia: ' + reference);
       return;
     }
 
@@ -63,7 +65,7 @@ export class WebhooksService {
 
     const newStatus = statusMap[wompiStatus];
     if (!newStatus) {
-      this.logger.log(`Estado Wompi ignorado: ${wompiStatus}`);
+      this.logger.log('Estado Wompi ignorado: ' + wompiStatus);
       return;
     }
 
@@ -90,13 +92,17 @@ export class WebhooksService {
           dropiResult.trackingNumber ?? '',
         );
         this.logger.log(
-          `Orden #${payment.orderId} => Dropi #${dropiResult.dropiOrderId}`,
+          'Orden #' + payment.orderId + ' => Dropi #' + dropiResult.dropiOrderId,
         );
       }
+
+      // Recargar orden con tracking actualizado antes de notificar
+      const orderFinal = await this.ordersService.findOneWithUser(payment.orderId);
+      await this.notificationsService.sendOrderConfirmation(orderFinal);
     }
 
     this.logger.log(
-      `Orden #${payment.orderId} => ${orderStatus} (ref: ${reference})`,
+      'Orden #' + payment.orderId + ' => ' + orderStatus + ' (ref: ' + reference + ')',
     );
   }
 }

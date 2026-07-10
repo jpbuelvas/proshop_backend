@@ -18,7 +18,6 @@ export class OrdersService {
   ) {}
 
   async create(userId: number, dto: CreateOrderDto): Promise<Order> {
-    // Reservar stock por talla — lanza BadRequestException si no hay disponibles
     await this.productsService.reserveStock(
       dto.items.map((i) => ({
         productId: i.productId,
@@ -54,6 +53,13 @@ export class OrdersService {
     });
   }
 
+  findAllForAdmin(): Promise<Order[]> {
+    return this.orderRepo.find({
+      relations: ['items', 'items.product', 'user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async findOneByUser(id: number, userId: number): Promise<Order> {
     const order = await this.orderRepo.findOne({
       where: { id },
@@ -69,7 +75,7 @@ export class OrdersService {
       where: { id },
       relations: ['items', 'items.product', 'user'],
     });
-    if (!order) throw new NotFoundException(`Orden #${id} no encontrada`);
+    if (!order) throw new NotFoundException('Orden #' + id + ' no encontrada');
     return order;
   }
 
@@ -77,19 +83,10 @@ export class OrdersService {
     await this.orderRepo.update(id, { status });
   }
 
-  async setTracking(
-    orderId: number,
-    dropiOrderId: string,
-    trackingNumber: string,
-  ): Promise<void> {
-    await this.orderRepo.update(orderId, {
-      dropiOrderId,
-      trackingNumber,
-      status: 'SHIPPED',
-    });
+  async setTracking(orderId: number, dropiOrderId: string, trackingNumber: string): Promise<void> {
+    await this.orderRepo.update(orderId, { dropiOrderId, trackingNumber, status: 'SHIPPED' });
   }
 
-  // Libera el stock por talla de una orden (para usar desde controllers/webhooks)
   async releaseStockForOrder(order: Order): Promise<void> {
     if (!order.items?.length) return;
     await this.productsService.releaseStock(
@@ -102,7 +99,6 @@ export class OrdersService {
     );
   }
 
-  // Busca órdenes PENDING más antiguas que `cutoff` (para limpiar reservas expiradas)
   findExpiredPending(cutoff: Date): Promise<Order[]> {
     return this.orderRepo.find({
       where: { status: 'PENDING', createdAt: LessThan(cutoff) },
@@ -110,11 +106,15 @@ export class OrdersService {
     });
   }
 
-  // Cancela la orden y libera el stock reservado
   async cancelExpired(order: Order): Promise<void> {
     await this.orderRepo.update(order.id, { status: 'DECLINED' });
     await this.productsService.releaseStock(
-      order.items.map((i) => ({ productId: i.productId, color: i.color || 'U', size: i.size || 'U', quantity: i.quantity })),
+      order.items.map((i) => ({
+        productId: i.productId,
+        color: i.color || 'U',
+        size: i.size || 'U',
+        quantity: i.quantity,
+      })),
     );
   }
 }
