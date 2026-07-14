@@ -93,6 +93,27 @@ export class ProductsService {
     await this.productRepository.remove(product);
   }
 
+  async checkStock(
+    items: { productId: number; color: string; size: string; quantity: number }[],
+  ): Promise<{ productId: number; productName: string; available: number; requested: number }[]> {
+    const issues: { productId: number; productName: string; available: number; requested: number }[] = [];
+    for (const item of items) {
+      const variant = await this.variantRepository.findOne({
+        where: { productId: item.productId, color: item.color, size: item.size },
+        relations: ['product'],
+      });
+      const available = variant?.available ?? 0;
+      if (available < item.quantity) {
+        const productName =
+          variant?.product?.name ??
+          (await this.productRepository.findOne({ where: { id: item.productId } }))?.name ??
+          `producto #${item.productId}`;
+        issues.push({ productId: item.productId, productName, available, requested: item.quantity });
+      }
+    }
+    return issues;
+  }
+
   async reserveStock(
     items: { productId: number; color: string; size: string; quantity: number }[],
   ): Promise<void> {
@@ -112,7 +133,10 @@ export class ProductsService {
           where: { productId: item.productId, color: item.color, size: item.size },
           relations: ['product'],
         });
-        const productName = variant?.product?.name ?? `producto #${item.productId}`;
+        const productName =
+          variant?.product?.name ??
+          (await this.productRepository.findOne({ where: { id: item.productId } }))?.name ??
+          `producto #${item.productId}`;
         const available = variant?.available ?? 0;
         const detail =
           item.color !== 'U' && item.size !== 'U'

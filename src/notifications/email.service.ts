@@ -182,8 +182,14 @@ export class EmailService {
     });
   }
 
-  private get from(): string {
-    return this.config.get<string>('EMAIL_FROM', 'Pro Shop <contacto@proshopbaq.com.co>');
+  private get fromEmail(): string {
+    const raw = this.config.get<string>('EMAIL_FROM', 'Pro Shop <contacto@proshopbaq.com.co>');
+    const match = raw.match(/<(.+)>/);
+    return match ? match[1] : raw;
+  }
+
+  private from(label: string): string {
+    return `${label} <${this.fromEmail}>`;
   }
 
   async sendOrderConfirmation(order: Order): Promise<void> {
@@ -230,7 +236,7 @@ export class EmailService {
     const html = buildEmail('Pedido #' + order.id + ' confirmado - Pro Shop', 'Tu pago fue aprobado. Aqui el resumen de tu pedido.', body);
 
     try {
-      await this.transporter.sendMail({ from: this.from, to, subject: 'Pro Shop - Pedido #' + order.id + ' confirmado', html });
+      await this.transporter.sendMail({ from: this.from('Pro Shop - Pedido Confirmado'), to, subject: 'Pro Shop - Pedido #' + order.id + ' confirmado', html });
       this.logger.log('Confirmacion enviada a ' + to);
     } catch (err) {
       this.logger.error('Error confirmacion: ' + (err as Error).message);
@@ -266,7 +272,7 @@ export class EmailService {
     const html = buildEmail('Tu pedido #' + order.id + ' fue enviado - Pro Shop', 'Tu pedido ya esta en camino.', body);
 
     try {
-      await this.transporter.sendMail({ from: this.from, to, subject: 'Pro Shop - Pedido #' + order.id + ' en camino', html });
+      await this.transporter.sendMail({ from: this.from('Pro Shop - Envio de Pedido'), to, subject: 'Pro Shop - Pedido #' + order.id + ' en camino', html });
       this.logger.log('Envio notificado a ' + to);
     } catch (err) {
       this.logger.error('Error envio: ' + (err as Error).message);
@@ -297,7 +303,7 @@ export class EmailService {
     const html = buildEmail(product.name + ' - Pro Shop', product.name + ' disponible en Pro Shop.', body);
 
     try {
-      await this.transporter.sendMail({ from: this.from, to: toEmail, subject: 'Pro Shop - ' + product.name, html });
+      await this.transporter.sendMail({ from: this.from('Pro Shop - Nuevo Producto'), to: toEmail, subject: 'Pro Shop - ' + product.name, html });
       this.logger.log('Email producto enviado a ' + toEmail);
     } catch (err) {
       this.logger.error('Error email producto: ' + (err as Error).message);
@@ -318,7 +324,7 @@ export class EmailService {
 
     const html = buildEmail('Mensaje sobre pedido #' + orderId + ' - Pro Shop', subject, body);
 
-    await this.transporter.sendMail({ from: this.from, to: toEmail, subject: 'Pro Shop - ' + subject, html });
+    await this.transporter.sendMail({ from: this.from('Pro Shop - Mensaje'), to: toEmail, subject: 'Pro Shop - ' + subject, html });
     this.logger.log('Mensaje de orden #' + orderId + ' enviado a ' + toEmail);
   }
 
@@ -383,7 +389,7 @@ export class EmailService {
     const html = buildEmail('Soporte Proshop' + orderRef + ' - ' + fromName, 'Mensaje de ' + fromName + ' (' + fromEmail + ')', body);
 
     await this.transporter.sendMail({
-      from: this.from,
+      from: this.from('Pro Shop - Soporte'),
       to: supportEmail,
       subject: 'Soporte Proshop' + orderRef + ' - ' + fromName,
       html,

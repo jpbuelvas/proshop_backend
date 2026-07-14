@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -33,6 +34,20 @@ export class ProductsController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.findOne(id);
+  }
+
+  // Verificar stock sin reservar (requiere auth)
+  @Post('stock-check')
+  @UseGuards(JwtAuthGuard)
+  checkStock(
+    @Body() body: { items: { productId: number; color: string | null; size: string | null; quantity: number }[] },
+  ) {
+    const normalized = body.items.map((i) => ({
+      ...i,
+      color: i.color ?? 'U',
+      size: i.size ?? 'U',
+    }));
+    return this.productsService.checkStock(normalized);
   }
 
   // Solo admin
