@@ -1,5 +1,5 @@
-import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -11,6 +11,7 @@ async function bootstrap() {
 
   const allowedOrigins = [
     'http://localhost:5173',
+    'https://localhost:5173',
     process.env.FRONTEND_URL?.replace(/\/$/, ''),
   ].filter(Boolean);
 
