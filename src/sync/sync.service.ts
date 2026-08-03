@@ -6,6 +6,7 @@ import axios from 'axios';
 import * as https from 'https';
 import { Product } from '../products/product.entity';
 import { ProductVariant } from '../products/product-variant.entity';
+import { normalizeCategories } from '../products/product-category';
 
 interface WcImage { src: string; }
 interface WcCategory { name: string; }
@@ -28,7 +29,7 @@ export interface SyncLogEntry {
   name: string;
   action: 'creado' | 'actualizado';
   price: number;
-  category: string;
+  categories: string[];
   imageUrl: string;
   ts: number;
 }
@@ -169,7 +170,7 @@ export class SyncService {
     // Descripcion: WC > _dropi_product JSON > short_description
     const rawDesc = wc.description || dropiJson?.descripcion || dropiJson?.description || wc.short_description || '';
     const description = stripHtml(rawDesc);
-    const category = (wc.categories?.[0]?.name ?? dropiJson?.categoria ?? 'general').toLowerCase();
+    const categories = normalizeCategories(wc.categories?.[0]?.name ?? dropiJson?.categoria ?? null);
     // Imagen: WC images > _dropi_product imagenes
     const imageUrl = wc.images?.[0]?.src
       ?? dropiJson?.imagenes?.[0]?.url
@@ -194,7 +195,7 @@ export class SyncService {
       existing.description = description;
       existing.price = price;
       (existing as any).previousPrice = previousPrice;
-      existing.category = category;
+      existing.categories = categories;
       if (imageUrl) existing.imageUrl = imageUrl;
       if (dropiProductId && !existing.dropiProductId) existing.dropiProductId = dropiProductId;
       await this.productRepo.save(existing);
@@ -213,7 +214,7 @@ export class SyncService {
       product.description = description;
       product.price = price;
       (product as any).previousPrice = previousPrice;
-      product.category = category;
+      product.categories = categories;
       product.gender = ['hombre', 'mujer'];
       product.imageUrl = imageUrl;
       product.reviews = 0;
@@ -229,6 +230,6 @@ export class SyncService {
       await this.variantRepo.save(variant);
     }
 
-    return { name, action, price, category, imageUrl, ts: Date.now() };
+    return { name, action, price, categories, imageUrl, ts: Date.now() };
   }
 }

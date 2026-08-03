@@ -23,8 +23,8 @@ export class Product {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: null })
   previousPrice: number;
 
-  @Column({ length: 50 })
-  category: string;
+  @Column({ type: 'text', array: true })
+  categories: string[];
 
   @Column({ type: 'text', array: true, nullable: true })
   gender: string[];

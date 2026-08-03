@@ -26,7 +26,7 @@ const PRODUCTS: Array<{
   description: string;
   price: number;
   previousPrice?: number;
-  category: string;
+  categories: string[];
   gender: string[];
   rating: number;
   reviews: number;
@@ -36,7 +36,7 @@ const PRODUCTS: Array<{
   {
     name: 'Leggings Compresión Pro',
     description: 'Leggings de alto rendimiento con tecnología de compresión graduada.',
-    price: 89900, previousPrice: 119900, category: 'ropa',
+    price: 89900, previousPrice: 119900, categories: ['ropa'],
     gender: ['W'], rating: 4.8, reviews: 214,
     imageUrl: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=800&q=80',
     variants: [
@@ -57,7 +57,7 @@ const PRODUCTS: Array<{
   {
     name: 'Camiseta Dry-Fit',
     description: 'Camiseta técnica de secado rápido con tecnología de absorción de humedad.',
-    price: 49900, previousPrice: 69900, category: 'ropa',
+    price: 49900, previousPrice: 69900, categories: ['ropa'],
     gender: ['M', 'U'], rating: 4.7, reviews: 168,
     imageUrl: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=800&q=80',
     variants: [
@@ -78,7 +78,7 @@ const PRODUCTS: Array<{
   {
     name: 'Short de Entrenamiento',
     description: 'Short ligero y flexible ideal para running, crossfit y actividades de alta intensidad.',
-    price: 59900, previousPrice: 79900, category: 'ropa',
+    price: 59900, previousPrice: 79900, categories: ['ropa'],
     gender: ['M', 'W', 'U'], rating: 4.6, reviews: 132,
     imageUrl: 'https://images.unsplash.com/photo-1591195853828-11db59a44f43?w=800&q=80',
     variants: [
@@ -95,7 +95,7 @@ const PRODUCTS: Array<{
   {
     name: 'Top Deportivo de Impacto',
     description: 'Top deportivo de alto impacto con soporte reforzado y tejido transpirable.',
-    price: 69900, previousPrice: 94900, category: 'ropa',
+    price: 69900, previousPrice: 94900, categories: ['ropa'],
     gender: ['W'], rating: 4.9, reviews: 189,
     imageUrl: 'https://images.unsplash.com/photo-1552084117-56a987666449?w=800&q=80',
     variants: [
@@ -112,7 +112,7 @@ const PRODUCTS: Array<{
   {
     name: 'Hoodie Performance',
     description: 'Sudadera con capucha de tejido técnico, ideal para calentamiento.',
-    price: 129900, previousPrice: 164900, category: 'ropa',
+    price: 129900, previousPrice: 164900, categories: ['ropa'],
     gender: ['M', 'W', 'U'], rating: 4.7, reviews: 98,
     imageUrl: 'https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=800&q=80',
     variants: [
@@ -130,7 +130,7 @@ const PRODUCTS: Array<{
   {
     name: 'Tenis Running Cloud',
     description: 'Zapatillas de running con suela de amortiguación reactiva.',
-    price: 279900, previousPrice: 349900, category: 'calzado',
+    price: 279900, previousPrice: 349900, categories: ['equipos'],
     gender: ['M', 'W'], rating: 4.9, reviews: 342,
     imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80',
     variants: [
@@ -155,7 +155,7 @@ const PRODUCTS: Array<{
   {
     name: 'Tenis Cross Training',
     description: 'Calzado versátil para entrenamiento cruzado con suela plana estable.',
-    price: 239900, previousPrice: 299900, category: 'calzado',
+    price: 239900, previousPrice: 299900, categories: ['equipos'],
     gender: ['M', 'W'], rating: 4.6, reviews: 211,
     imageUrl: 'https://images.unsplash.com/photo-1539185441755-769473a23570?w=800&q=80',
     variants: [
@@ -176,7 +176,7 @@ const PRODUCTS: Array<{
   {
     name: 'Mochila Gym Pro 30L',
     description: 'Mochila deportiva con compartimento separado para zapatos y puerto USB.',
-    price: 119900, previousPrice: 149900, category: 'accesorios',
+    price: 119900, previousPrice: 149900, categories: ['accesorios'],
     gender: ['M', 'W', 'U'], rating: 4.8, reviews: 157,
     imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80',
     // Sin selección de talla, pero con opción de color
@@ -189,7 +189,7 @@ const PRODUCTS: Array<{
   {
     name: 'Guantes de Entrenamiento',
     description: 'Guantes con palma acolchada, muñequera de soporte y ventilación.',
-    price: 39900, previousPrice: 54900, category: 'accesorios',
+    price: 39900, previousPrice: 54900, categories: ['accesorios'],
     gender: ['M', 'W', 'U'], rating: 4.5, reviews: 203,
     imageUrl: 'https://images.unsplash.com/photo-1590239926044-4131a4c88dab?w=800&q=80',
     variants: [
@@ -202,7 +202,7 @@ const PRODUCTS: Array<{
   {
     name: 'Botella Térmica 1L',
     description: 'Botella de acero inoxidable con doble pared, mantiene frío 24h.',
-    price: 64900, previousPrice: 84900, category: 'accesorios',
+    price: 64900, previousPrice: 84900, categories: ['accesorios'],
     gender: ['M', 'W', 'U'], rating: 4.7, reviews: 318,
     imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=800&q=80',
     // Sin talla, con opción de color
@@ -216,7 +216,7 @@ const PRODUCTS: Array<{
   {
     name: 'Cuerda de Saltar Pro',
     description: 'Cable de acero recubierto con mangos ergonómicos y rodamientos de precisión.',
-    price: 34900, previousPrice: 44900, category: 'equipos',
+    price: 34900, previousPrice: 44900, categories: ['equipos'],
     gender: ['M', 'W', 'U'], rating: 4.6, reviews: 145,
     imageUrl: 'https://images.unsplash.com/photo-1434682772747-f16d3ea162c3?w=800&q=80',
     // Un solo color, sin talla → 'U'/'U'
@@ -227,7 +227,7 @@ const PRODUCTS: Array<{
   {
     name: 'Banda de Resistencia Set',
     description: 'Set de 5 bandas elásticas de resistencia progresiva (5 a 40 kg).',
-    price: 79900, previousPrice: 99900, category: 'equipos',
+    price: 79900, previousPrice: 99900, categories: ['equipos'],
     gender: ['M', 'W', 'U'], rating: 4.8, reviews: 267,
     imageUrl: 'https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=800&q=80',
     variants: [
@@ -237,7 +237,7 @@ const PRODUCTS: Array<{
   {
     name: 'Rodilleras de Compresión',
     description: 'Compresión graduada para soporte articular durante el entrenamiento.',
-    price: 44900, previousPrice: 59900, category: 'accesorios',
+    price: 44900, previousPrice: 59900, categories: ['accesorios'],
     gender: ['M', 'W', 'U'], rating: 4.5, reviews: 124,
     imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80',
     variants: [
@@ -250,7 +250,7 @@ const PRODUCTS: Array<{
   {
     name: 'Calcetines Deportivos Pack x3',
     description: 'Pack de 3 pares con amortiguación en zonas de impacto y tejido antiolor.',
-    price: 29900, previousPrice: 39900, category: 'ropa',
+    price: 29900, previousPrice: 39900, categories: ['ropa'],
     gender: ['M', 'W', 'U'], rating: 4.4, reviews: 389,
     imageUrl: 'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=800&q=80',
     // Sin selección de color, con talla de pie
@@ -263,7 +263,7 @@ const PRODUCTS: Array<{
   {
     name: 'Tapete de Yoga 6mm',
     description: 'Tapete antideslizante con marcas de alineación y tejido ecológico.',
-    price: 89900, previousPrice: 114900, category: 'equipos',
+    price: 89900, previousPrice: 114900, categories: ['equipos'],
     gender: ['M', 'W', 'U'], rating: 4.9, reviews: 276,
     imageUrl: 'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=800&q=80',
     variants: [

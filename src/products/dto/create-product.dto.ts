@@ -3,6 +3,8 @@ import {
   IsNumber,
   IsOptional,
   IsArray,
+  IsIn,
+  ArrayMinSize,
   MaxLength,
   IsPositive,
   ValidateNested,
@@ -10,6 +12,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PRODUCT_CATEGORIES } from '../product-category';
 
 export class CreateVariantDto {
   @IsOptional()
@@ -57,9 +60,11 @@ export class CreateProductDto {
   @IsOptional()
   previousPrice?: number;
 
-  @IsString()
-  @MaxLength(50)
-  category: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  @IsIn(PRODUCT_CATEGORIES, { each: true })
+  categories: string[];
 
   @IsArray()
   @IsString({ each: true })

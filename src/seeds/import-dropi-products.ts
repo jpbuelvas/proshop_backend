@@ -17,6 +17,7 @@ import { User } from '../users/user.entity';
 import { Order } from '../orders/order.entity';
 import { OrderItem } from '../orders/order-item.entity';
 import { Payment } from '../payments/payment.entity';
+import { normalizeCategories } from '../products/product-category';
 
 const DROPI_PRODUCT_IDS = [1689694, 1173076];
 const DROPI_BASE_URL = process.env.DROPI_BASE_URL ?? 'https://api.dropi.co/v1';
@@ -95,16 +96,12 @@ async function searchInProductList(dropiId: number): Promise<any | null> {
   return null;
 }
 
-function mapCategory(raw: any): string {
+function mapCategories(raw: any): string[] {
   const cats: string[] = [];
   if (raw?.categories) cats.push(...(Array.isArray(raw.categories) ? raw.categories.map((c: any) => c?.name ?? c) : []));
   if (raw?.tags) cats.push(...(Array.isArray(raw.tags) ? raw.tags.map((t: any) => t?.name ?? t) : []));
   if (raw?.category) cats.push(String(raw.category));
-  const joined = cats.join(' ').toLowerCase();
-  if (joined.includes('ropa') || joined.includes('clothing')) return 'ropa';
-  if (joined.includes('calzado') || joined.includes('shoe')) return 'calzado';
-  if (joined.includes('accesorio') || joined.includes('accessory')) return 'accesorios';
-  return 'equipos';
+  return normalizeCategories(cats.length > 0 ? [cats.join(' ')] : null);
 }
 
 function extractImages(raw: any): string[] {
@@ -150,14 +147,14 @@ async function importProducts(): Promise<void> {
     const price = suggestedPrice || providerPrice || 0;
     const images = extractImages(raw);
     const imageUrl = images[0] ?? null;
-    const category = mapCategory(raw);
+    const categories = mapCategories(raw);
     const stock = Number(raw?.stock ?? raw?.inventory_quantity ?? raw?.quantity ?? raw?.available ?? 10);
 
     console.log(`  Nombre: ${name}`);
     console.log(`  Precio: $${price.toLocaleString('es-CO')}`);
     console.log(`  Imagen: ${imageUrl ?? '(sin imagen)'}`);
     console.log(`  Imagen extra: ${images[1] ?? '—'}`);
-    console.log(`  Categoria: ${category}`);
+    console.log(`  Categorias: ${categories.join(', ')}`);
     console.log(`  Stock: ${stock}`);
     console.log(`  Descripcion: ${description.slice(0, 100)}...`);
 
@@ -180,7 +177,7 @@ async function importProducts(): Promise<void> {
       name,
       description: description.slice(0, 5000) || undefined,
       price,
-      category,
+      categories,
       gender: ['U'],
       rating: 0,
       reviews: 0,

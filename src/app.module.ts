@@ -14,12 +14,14 @@ import { TasksModule } from './tasks/tasks.module';
 import { DropiModule } from './dropi/dropi.module';
 import { SyncModule } from './sync/sync.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SettingsModule } from './settings/settings.module';
 import { Product } from './products/product.entity';
 import { ProductVariant } from './products/product-variant.entity';
 import { User } from './users/user.entity';
 import { Order } from './orders/order.entity';
 import { OrderItem } from './orders/order-item.entity';
 import { Payment } from './payments/payment.entity';
+import { SiteSettings } from './settings/site-settings.entity';
 
 @Module({
   imports: [
@@ -34,7 +36,7 @@ import { Payment } from './payments/payment.entity';
         username: config.get<string>('DB_USER', 'postgres'),
         password: config.get<string>('DB_PASSWORD', ''),
         database: config.get<string>('DB_NAME', 'proshop'),
-        entities: [Product, ProductVariant, User, Order, OrderItem, Payment],
+        entities: [Product, ProductVariant, User, Order, OrderItem, Payment, SiteSettings],
         synchronize: true,
       }),
       inject: [ConfigService],
@@ -49,6 +51,7 @@ import { Payment } from './payments/payment.entity';
     DropiModule,
     SyncModule,
     NotificationsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

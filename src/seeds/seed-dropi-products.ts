@@ -11,6 +11,7 @@ import axios from 'axios';
 import { DataSource } from 'typeorm';
 import { Product } from '../products/product.entity';
 import { ProductVariant } from '../products/product-variant.entity';
+import { normalizeCategories } from '../products/product-category';
 
 const KEY = process.env.DROPI_API_KEY ?? '';
 const BASE = process.env.DROPI_BASE_URL ?? 'https://api.dropi.co/v1';
@@ -21,7 +22,7 @@ interface ProductData {
   description: string;
   price: number;
   previousPrice?: number;
-  category: string;
+  categories: string[];
   gender: string[];
   imageUrl: string;
 }
@@ -33,7 +34,7 @@ const MANUAL: Record<number, ProductData> = {
     description: 'Cepillo de limpieza facial y corporal 9 en 1. Tecnologia bioelectrica para limpieza profunda, exfoliacion, masaje y cuidado de la piel. Incluye multiples cabezales intercambiables.',
     price: 85000,
     previousPrice: 52000,
-    category: 'belleza',
+    categories: ['equipos'],
     gender: ['mujer', 'hombre'],
     imageUrl: '',
   },
@@ -42,7 +43,7 @@ const MANUAL: Record<number, ProductData> = {
     name: 'Producto Dropi 1173076',
     description: 'Descripcion pendiente. Edita desde el Admin Panel.',
     price: 0,
-    category: 'general',
+    categories: ['equipos'],
     gender: ['hombre', 'mujer'],
     imageUrl: '',
   },
@@ -67,7 +68,7 @@ async function fetchFromDropi(productId: number): Promise<ProductData | null> {
           description: obj.description ?? obj.descripcion ?? '',
           price: Number(obj.suggested_price ?? obj.precio ?? obj.price ?? 0),
           previousPrice: Number(obj.original_price ?? 0) || undefined,
-          category: obj.category?.name ?? obj.categoria ?? 'general',
+          categories: normalizeCategories(obj.category?.name ?? obj.categoria ?? null),
           gender: obj.gender ? [obj.gender] : ['hombre', 'mujer'],
           imageUrl: obj.main_image ?? obj.image ?? obj.imagenUrl ?? '',
         };
@@ -124,7 +125,7 @@ async function main() {
       existing.description = data.description;
       existing.price = data.price;
       (existing as any).previousPrice = data.previousPrice ?? null;
-      existing.category = data.category;
+      existing.categories = data.categories;
       existing.gender = data.gender;
       if (data.imageUrl) existing.imageUrl = data.imageUrl;
       await productRepo.save(existing);
@@ -135,7 +136,7 @@ async function main() {
       product.description = data.description;
       product.price = data.price;
       (product as any).previousPrice = data.previousPrice ?? null;
-      product.category = data.category;
+      product.categories = data.categories;
       product.gender = data.gender;
       product.imageUrl = data.imageUrl;
       product.dropiProductId = dropiId;

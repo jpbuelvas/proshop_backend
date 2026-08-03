@@ -53,7 +53,10 @@ export class ProductsService {
   }
 
   findByCategory(category: string): Promise<Product[]> {
-    return this.productRepository.find({ where: { category } });
+    return this.productRepository
+      .createQueryBuilder('product')
+      .where(':category = ANY(product.categories)', { category })
+      .getMany();
   }
 
   async findOne(id: number): Promise<Product> {
