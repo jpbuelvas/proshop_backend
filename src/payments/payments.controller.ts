@@ -36,8 +36,17 @@ export class PaymentsController {
   // GET /payments/verify/:transactionId — verificar estado directamente en Wompi
   @Get('verify/:transactionId')
   @UseGuards(JwtAuthGuard)
-  async verifyTransaction(@Param('transactionId') transactionId: string) {
+  async verifyTransaction(
+    @Param('transactionId') transactionId: string,
+    @Req() req: any,
+  ) {
     const result = await this.paymentsService.verifyFromWompi(transactionId);
+
+    // La orden asociada al pago debe pertenecer al usuario autenticado;
+    // findOneByUser lanza ForbiddenException/NotFoundException si no es así.
+    if (result.payment) {
+      await this.ordersService.findOneByUser(result.payment.orderId, req.user.id);
+    }
 
     if (result.newStatus && result.payment) {
       const orderStatus: OrderStatus =

@@ -23,11 +23,14 @@ export class WebhooksService {
       const secret = this.config.get<string>('WOMPI_EVENTS_SECRET')!;
       const properties: string[] = body?.signature?.properties ?? [];
       const timestamp: string = String(body?.timestamp ?? '');
+      const data = body?.data;
 
+      // Las rutas de signature.properties (ej. "transaction.id") se resuelven
+      // contra "data", no contra la raíz del payload — así lo documenta Wompi.
       const concatenated =
         properties
           .map((prop: string) =>
-            prop.split('.').reduce((acc: any, key: string) => acc?.[key], body),
+            prop.split('.').reduce((acc: any, key: string) => acc?.[key], data),
           )
           .join('') +
         timestamp +

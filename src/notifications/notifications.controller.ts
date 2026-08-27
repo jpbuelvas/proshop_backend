@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { IsEmail, IsNumber, IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -84,11 +84,13 @@ export class NotificationsController {
   @Post('contact')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async sendSupportMessage(@Body() dto: SendSupportMessageDto) {
+  async sendSupportMessage(@Body() dto: SendSupportMessageDto, @Req() req: any) {
     let order: Order | undefined;
     if (dto.orderId) {
       try {
-        order = await this.ordersService.findOneWithUser(dto.orderId);
+        // Solo se adjunta la orden si pertenece al usuario que escribe;
+        // findOneByUser lanza si no existe o no es suya.
+        order = await this.ordersService.findOneByUser(dto.orderId, req.user.id);
       } catch (_e) {
         order = undefined;
       }

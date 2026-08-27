@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Product } from './product.entity';
 import { ProductVariant } from './product-variant.entity';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -117,11 +117,43 @@ export class ProductsService {
     return issues;
   }
 
+  // Precio de verdad (servidor), ignora cualquier precio que envíe el cliente
+  async getPricedItems(
+    items: { productId: number; color: string; size: string; quantity: number }[],
+  ): Promise<
+    { productId: number; color: string; size: string; quantity: number; unitPrice: number }[]
+  > {
+    const priced: { productId: number; color: string; size: string; quantity: number; unitPrice: number }[] = [];
+    for (const item of items) {
+      const variant = await this.variantRepository.findOne({
+        where: { productId: item.productId, color: item.color, size: item.size },
+        relations: ['product'],
+      });
+      if (!variant || !variant.product) {
+        throw new NotFoundException(
+          `Variante no encontrada para el producto #${item.productId}`,
+        );
+      }
+      const unitPrice =
+        variant.specialPrice != null ? Number(variant.specialPrice) : Number(variant.product.price);
+      priced.push({ ...item, unitPrice });
+    }
+    return priced;
+  }
+
+  // `manager` opcional: cuando se pasa (ej. desde OrdersService.create dentro
+  // de una transacción), la reserva participa de esa misma transacción para
+  // que un fallo posterior (ej. al guardar la orden) revierta el descuento
+  // de stock en vez de dejarlo perdido.
   async reserveStock(
     items: { productId: number; color: string; size: string; quantity: number }[],
+    manager?: EntityManager,
   ): Promise<void> {
+    const variantRepo = manager ? manager.getRepository(ProductVariant) : this.variantRepository;
+    const productRepo = manager ? manager.getRepository(Product) : this.productRepository;
+
     for (const item of items) {
-      const result = await this.variantRepository
+      const result = await variantRepo
         .createQueryBuilder()
         .update(ProductVariant)
         .set({ available: () => `available - ${item.quantity}` })
@@ -132,13 +164,13 @@ export class ProductsService {
         .execute();
 
       if (!result.affected || result.affected === 0) {
-        const variant = await this.variantRepository.findOne({
+        const variant = await variantRepo.findOne({
           where: { productId: item.productId, color: item.color, size: item.size },
           relations: ['product'],
         });
         const productName =
           variant?.product?.name ??
-          (await this.productRepository.findOne({ where: { id: item.productId } }))?.name ??
+          (await productRepo.findOne({ where: { id: item.productId } }))?.name ??
           `producto #${item.productId}`;
         const available = variant?.available ?? 0;
         const detail =

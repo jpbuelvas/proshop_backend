@@ -6,13 +6,19 @@ import { Roles } from '../auth/roles.decorator';
 import axios from 'axios';
 import * as https from 'https';
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+// En producción SIEMPRE se valida el certificado TLS. Solo en desarrollo se
+// acepta un certificado self-signed para probar contra WooCommerce en local.
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: process.env.NODE_ENV === 'production',
+});
 
 @Controller('sync')
 export class SyncController {
   constructor(private readonly syncService: SyncService) {}
 
   @Get('status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   getStatus() {
     return this.syncService.getStatus();
   }

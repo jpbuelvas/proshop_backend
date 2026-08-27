@@ -53,8 +53,12 @@ function getMeta(meta: WcMeta[], ...keys: string[]): string | null {
   return null;
 }
 
-// Agente HTTPS que acepta certificados self-signed (Local by Flywheel)
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+// En producción SIEMPRE se valida el certificado TLS. Solo en desarrollo se
+// acepta un certificado self-signed (Local by Flywheel) para probar contra
+// WooCommerce en local.
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: process.env.NODE_ENV === 'production',
+});
 
 @Injectable()
 export class SyncService {

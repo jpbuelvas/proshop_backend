@@ -1,0 +1,19 @@
+Las migraciones de TypeORM van en esta carpeta.
+
+No se generó ninguna todavía porque no hay una base de datos disponible en
+este entorno para introspeccionar el esquema actual. Antes de desplegar a
+producción por primera vez con `synchronize` apagado (ver app.module.ts),
+corre esto contra una BD de desarrollo que ya tenga el esquema aplicado
+(por ejemplo, con `synchronize: true` en local, como sigue siendo el
+comportamiento por defecto fuera de producción):
+
+  npm run migration:generate -- src/migrations/InitialSchema
+
+Eso genera la migración inicial que refleja el esquema actual de las
+entidades. Luego, en cada deploy:
+
+  npm run migration:run
+
+Y si algo sale mal:
+
+  npm run migration:revert

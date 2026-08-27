@@ -26,6 +26,18 @@ interface SupportMessageOpts {
   order?: Order;
 }
 
+// Escapa datos que vienen de un formulario (nombre, dirección, mensaje de
+// soporte, etc.) antes de interpolarlos en el HTML del correo — evita que un
+// campo con "<img onerror=...>" o similar se inyecte en el email.
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ── Shared template builder ──────────────────────────────────────────────────
 function buildEmail(title: string, preheader: string, bodyHtml: string): string {
   return '<!DOCTYPE html>'
@@ -90,8 +102,10 @@ function buildOrderSummaryHtml(order: Order): string {
     : '';
 
   const itemRows = (order.items ?? []).map((item) => {
-    const name = item.product?.name ?? 'Producto #' + item.productId;
-    const variant = [item.size, item.color].filter((v) => v && v !== 'U').join(' / ');
+    const name = escapeHtml(item.product?.name ?? 'Producto #' + item.productId);
+    const variant = escapeHtml(
+      [item.size, item.color].filter((v) => v && v !== 'U').join(' / '),
+    );
     const variantHtml = variant ? ' <span style="color:#999;font-size:12px;">(' + variant + ')</span>' : '';
     return '<tr>'
       + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#333;">' + name + variantHtml + '</td>'
@@ -104,10 +118,10 @@ function buildOrderSummaryHtml(order: Order): string {
     ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#111;margin-top:12px;">'
       + '<tr>'
       + (order.trackingNumber
-        ? '<td style="padding:12px 16px;"><span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.45);">Guia de envio</span><br><span style="font-size:16px;font-weight:900;color:#fff;letter-spacing:1px;">' + order.trackingNumber + '</span></td>'
+        ? '<td style="padding:12px 16px;"><span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.45);">Guia de envio</span><br><span style="font-size:16px;font-weight:900;color:#fff;letter-spacing:1px;">' + escapeHtml(order.trackingNumber) + '</span></td>'
         : '')
       + (order.dropiOrderId
-        ? '<td style="padding:12px 16px;" align="right"><span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.45);">ID Dropi</span><br><span style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);">' + order.dropiOrderId + '</span></td>'
+        ? '<td style="padding:12px 16px;" align="right"><span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.45);">ID Dropi</span><br><span style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);">' + escapeHtml(order.dropiOrderId) + '</span></td>'
         : '')
       + '</tr>'
       + '</table>'
@@ -138,8 +152,8 @@ function buildOrderSummaryHtml(order: Order): string {
     + '</td></tr>'
     + '<tr><td style="padding:12px 16px;border-top:1px solid #eee;">'
     + '<span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Enviar a</span><br>'
-    + '<span style="font-size:13px;color:#333;">' + (order.shippingAddress ?? '') + (order.shippingCity ? ', ' + order.shippingCity : '') + '</span>'
-    + (order.shippingPhone ? '<br><span style="font-size:12px;color:#666;">Tel: ' + order.shippingPhone + '</span>' : '')
+    + '<span style="font-size:13px;color:#333;">' + escapeHtml(order.shippingAddress ?? '') + (order.shippingCity ? ', ' + escapeHtml(order.shippingCity) : '') + '</span>'
+    + (order.shippingPhone ? '<br><span style="font-size:12px;color:#666;">Tel: ' + escapeHtml(order.shippingPhone) + '</span>' : '')
     + trackingBlock
     + '</td></tr>'
     + '</table>';
@@ -153,11 +167,11 @@ function buildClientProfileHtml(order: Order): string {
     + '<tr><td style="padding:0;">'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0">'
     + '<tr><td style="padding:10px 16px;border-bottom:1px solid #f0f0f0;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;width:120px;">Nombre</td>'
-    + '<td style="padding:10px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#111;font-weight:700;">' + (user.name ?? '-') + '</td></tr>'
+    + '<td style="padding:10px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#111;font-weight:700;">' + escapeHtml(user.name ?? '-') + '</td></tr>'
     + '<tr><td style="padding:10px 16px;border-bottom:1px solid #f0f0f0;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Email</td>'
-    + '<td style="padding:10px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;"><a href="mailto:' + (user.email ?? '') + '" style="color:#c8102e;text-decoration:none;font-weight:700;">' + (user.email ?? '-') + '</a></td></tr>'
+    + '<td style="padding:10px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;"><a href="mailto:' + escapeHtml(user.email ?? '') + '" style="color:#c8102e;text-decoration:none;font-weight:700;">' + escapeHtml(user.email ?? '-') + '</a></td></tr>'
     + (user.phone ? '<tr><td style="padding:10px 16px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Telefono</td>'
-    + '<td style="padding:10px 16px;font-size:13px;color:#333;">' + user.phone + '</td></tr>' : '')
+    + '<td style="padding:10px 16px;font-size:13px;color:#333;">' + escapeHtml(user.phone) + '</td></tr>' : '')
     + '</table>'
     + '</td></tr>'
     + '</table>';
@@ -197,8 +211,10 @@ export class EmailService {
     if (!to) { this.logger.warn('Orden #' + order.id + ' sin email'); return; }
 
     const itemRows = (order.items ?? []).map((item) => {
-      const name = item.product?.name ?? 'Producto';
-      const variant = [item.size, item.color].filter((v) => v && v !== 'U').join(' / ');
+      const name = escapeHtml(item.product?.name ?? 'Producto');
+      const variant = escapeHtml(
+        [item.size, item.color].filter((v) => v && v !== 'U').join(' / '),
+      );
       const display = variant ? name + ' <span style="color:#999;font-size:12px;">(' + variant + ')</span>' : name;
       return '<tr>'
         + '<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">' + display + '</td>'
@@ -211,7 +227,7 @@ export class EmailService {
 
     const body = '<h1 style="margin:0 0 6px;font-size:26px;font-weight:900;color:#111;letter-spacing:-0.5px;">Pedido confirmado</h1>'
       + '<p style="margin:0 0 24px;font-size:14px;color:#666;">Orden <strong>#' + order.id + '</strong> &mdash; ' + createdDate + '</p>'
-      + '<p style="margin:0 0 20px;font-size:15px;color:#333;">Hola <strong>' + (order.user?.name ?? '') + '</strong>, tu pago fue aprobado. Aqui el resumen de tu compra:</p>'
+      + '<p style="margin:0 0 20px;font-size:15px;color:#333;">Hola <strong>' + escapeHtml(order.user?.name ?? '') + '</strong>, tu pago fue aprobado. Aqui el resumen de tu compra:</p>'
       + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #eee;">'
       + '<thead><tr style="background:#111;">'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#fff;font-weight:700;">Producto</th>'
@@ -227,8 +243,8 @@ export class EmailService {
       + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;background:#f9f9f9;border-left:3px solid #c8102e;">'
       + '<tr><td style="padding:16px;">'
       + '<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Direccion de envio</p>'
-      + '<p style="margin:0;font-size:14px;color:#333;">' + (order.shippingAddress ?? '') + ', ' + (order.shippingCity ?? '') + '</p>'
-      + (order.shippingPhone ? '<p style="margin:4px 0 0;font-size:13px;color:#666;">Tel: ' + order.shippingPhone + '</p>' : '')
+      + '<p style="margin:0;font-size:14px;color:#333;">' + escapeHtml(order.shippingAddress ?? '') + ', ' + escapeHtml(order.shippingCity ?? '') + '</p>'
+      + (order.shippingPhone ? '<p style="margin:4px 0 0;font-size:13px;color:#666;">Tel: ' + escapeHtml(order.shippingPhone) + '</p>' : '')
       + '</td></tr>'
       + '</table>'
       + '<p style="margin:24px 0 0;font-size:13px;color:#888;line-height:1.6;">Te notificaremos cuando tu pedido sea enviado. Si tienes preguntas escribe a <a href="mailto:soporte@proshopbaq.com.co" style="color:#c8102e;text-decoration:none;font-weight:700;">soporte@proshopbaq.com.co</a>.</p>';
@@ -252,7 +268,7 @@ export class EmailService {
         + '<tr>'
         + '<td style="padding:20px 24px;">'
         + '<p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.5);">Numero de guia</p>'
-        + '<p style="margin:0;font-size:20px;font-weight:900;color:#fff;letter-spacing:1px;">' + order.trackingNumber + '</p>'
+        + '<p style="margin:0;font-size:20px;font-weight:900;color:#fff;letter-spacing:1px;">' + escapeHtml(order.trackingNumber) + '</p>'
         + '</td>'
         + '<td align="right" style="padding:20px 24px;">'
         + '<span style="display:inline-block;width:12px;height:12px;background:#c8102e;border-radius:50%;margin-right:6px;"></span>'
@@ -264,7 +280,7 @@ export class EmailService {
 
     const body = '<h1 style="margin:0 0 6px;font-size:26px;font-weight:900;color:#111;">Tu pedido va en camino</h1>'
       + '<p style="margin:0 0 24px;font-size:14px;color:#666;">Orden <strong>#' + order.id + '</strong></p>'
-      + '<p style="margin:0 0 20px;font-size:15px;color:#333;">Hola <strong>' + (order.user?.name ?? '') + '</strong>, tu pedido ya fue despachado.</p>'
+      + '<p style="margin:0 0 20px;font-size:15px;color:#333;">Hola <strong>' + escapeHtml(order.user?.name ?? '') + '</strong>, tu pedido ya fue despachado.</p>'
       + trackingBlock
       + '<p style="margin:0 0 8px;font-size:14px;color:#555;line-height:1.7;">Puedes revisar el estado de tu pedido en el historial de compras de la plataforma.</p>'
       + '<p style="margin:0;font-size:13px;color:#888;">Preguntas: <a href="mailto:soporte@proshopbaq.com.co" style="color:#c8102e;text-decoration:none;font-weight:700;">soporte@proshopbaq.com.co</a></p>';
@@ -281,26 +297,27 @@ export class EmailService {
 
   async sendProductNotification(opts: ProductNotificationOpts): Promise<void> {
     const { toEmail, toName, product, message } = opts;
+    const productName = escapeHtml(product.name);
 
     const imageBlock = product.imageUrl
-      ? '<img src="' + product.imageUrl + '" alt="' + product.name + '" width="100%" style="display:block;max-width:528px;height:auto;margin-bottom:20px;object-fit:cover;">'
+      ? '<img src="' + escapeHtml(product.imageUrl) + '" alt="' + productName + '" width="100%" style="display:block;max-width:528px;height:auto;margin-bottom:20px;object-fit:cover;">'
       : '';
     const customMsg = message
-      ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9f9f9;border-left:3px solid #111;margin-bottom:24px;"><tr><td style="padding:16px 20px;font-size:14px;color:#333;line-height:1.7;">' + message + '</td></tr></table>'
+      ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9f9f9;border-left:3px solid #111;margin-bottom:24px;"><tr><td style="padding:16px 20px;font-size:14px;color:#333;line-height:1.7;">' + escapeHtml(message) + '</td></tr></table>'
       : '';
     const descBlock = product.description
-      ? '<p style="margin:0 0 16px;font-size:14px;color:#555;line-height:1.7;">' + product.description + '</p>'
+      ? '<p style="margin:0 0 16px;font-size:14px;color:#555;line-height:1.7;">' + escapeHtml(product.description) + '</p>'
       : '';
 
-    const body = '<h1 style="margin:0 0 24px;font-size:26px;font-weight:900;color:#111;">Hola ' + toName + '</h1>'
+    const body = '<h1 style="margin:0 0 24px;font-size:26px;font-weight:900;color:#111;">Hola ' + escapeHtml(toName) + '</h1>'
       + customMsg
       + imageBlock
-      + '<h2 style="margin:0 0 8px;font-size:20px;font-weight:900;color:#111;">' + product.name + '</h2>'
+      + '<h2 style="margin:0 0 8px;font-size:20px;font-weight:900;color:#111;">' + productName + '</h2>'
       + descBlock
       + '<p style="margin:0 0 24px;font-size:28px;font-weight:900;color:#111;">$' + Number(product.price).toLocaleString('es-CO') + '</p>'
       + '<a href="https://proshopbaq.com.co" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:14px 28px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">VER EN PRO SHOP</a>';
 
-    const html = buildEmail(product.name + ' - Pro Shop', product.name + ' disponible en Pro Shop.', body);
+    const html = buildEmail(productName + ' - Pro Shop', productName + ' disponible en Pro Shop.', body);
 
     try {
       await this.transporter.sendMail({ from: this.from('Pro Shop - Nuevo Producto'), to: toEmail, subject: 'Pro Shop - ' + product.name, html });
@@ -316,9 +333,9 @@ export class EmailService {
 
     const body = '<h1 style="margin:0 0 6px;font-size:26px;font-weight:900;color:#111;">Mensaje sobre tu pedido</h1>'
       + '<p style="margin:0 0 24px;font-size:14px;color:#666;">Orden <strong>#' + orderId + '</strong></p>'
-      + '<p style="margin:0 0 20px;font-size:15px;color:#333;">Hola <strong>' + toName + '</strong>,</p>'
+      + '<p style="margin:0 0 20px;font-size:15px;color:#333;">Hola <strong>' + escapeHtml(toName) + '</strong>,</p>'
       + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9f9f9;border-left:3px solid #c8102e;margin-bottom:24px;">'
-      + '<tr><td style="padding:20px 24px;font-size:14px;color:#333;line-height:1.8;">' + message.replace(/\n/g, '<br>') + '</td></tr>'
+      + '<tr><td style="padding:20px 24px;font-size:14px;color:#333;line-height:1.8;">' + escapeHtml(message).replace(/\n/g, '<br>') + '</td></tr>'
       + '</table>'
       + '<p style="margin:0;font-size:13px;color:#888;">Puedes responder a este correo o escribirnos a <a href="mailto:soporte@proshopbaq.com.co" style="color:#c8102e;text-decoration:none;font-weight:700;">soporte@proshopbaq.com.co</a>.</p>';
 
@@ -330,7 +347,10 @@ export class EmailService {
 
 
   async sendSupportMessage(opts: SupportMessageOpts): Promise<void> {
-    const { fromName, fromEmail, message, orderId, order } = opts;
+    const { orderId, order } = opts;
+    const fromName = escapeHtml(opts.fromName);
+    const fromEmail = escapeHtml(opts.fromEmail);
+    const message = escapeHtml(opts.message);
     const supportEmail = this.config.get<string>('SUPPORT_EMAIL', 'soporte@proshopbaq.com.co');
     const orderRef = orderId ? ' (Pedido #' + orderId + ')' : '';
 

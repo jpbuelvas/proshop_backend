@@ -17,9 +17,12 @@ export class OrderItemDto {
   @IsPositive()
   quantity: number;
 
+  // Informativo únicamente: el precio real se recalcula en el servidor
+  // (OrdersService.create) a partir del producto/variante en BD.
   @IsNumber()
   @IsPositive()
-  unitPrice: number;
+  @IsOptional()
+  unitPrice?: number;
 
   @IsString()
   @IsOptional()
@@ -37,9 +40,12 @@ export class CreateOrderDto {
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
 
+  // Informativo únicamente: el total real se recalcula en el servidor
+  // sumando los unitPrice recalculados (ver OrdersService.create).
   @IsNumber()
   @IsPositive()
-  total: number;
+  @IsOptional()
+  total?: number;
 
   @IsString()
   shippingAddress: string;
